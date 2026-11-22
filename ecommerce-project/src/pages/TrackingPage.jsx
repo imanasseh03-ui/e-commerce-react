@@ -1,85 +1,59 @@
-import './TrackingPage.css'
-import './header.css'
-import logo from '../assets/images/logo-white.png';
-import mobileLogo from '../assets/images/mobile-logo-white.png';
-import searchIcon from '../assets/images/icons/search-icon.png';
-import cartIcon from '../assets/images/icons/cart-icon.png';
-import socksImage from '../assets/images/products/athletic-cotton-socks-6-pairs.jpg';
+import axios from 'axios';
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router';
+import { Header } from '../components/Header';
+import './TrackingPage.css';
 
+const API = 'http://localhost:3000/api';
 
 export function TrackingPage() {
+    const { orderId } = useParams();
+    const [order, setOrder] = useState(null);
+    const [cart, setCart] = useState([]);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        Promise.all([
+            axios.get(`${API}/orders/${orderId}?expand=products`),
+            axios.get(`${API}/cart-items`)
+        ]).then(([orderResponse, cartResponse]) => {
+            setOrder(orderResponse.data);
+            setCart(cartResponse.data);
+        }).catch(() => setError('Could not find tracking details for this order.'));
+    }, [orderId]);
+
+    const firstProduct = order?.products?.[0];
+    const deliveryDate = firstProduct?.estimatedDeliveryTimeMs;
+    const delivered = deliveryDate && Date.now() >= Number(deliveryDate);
+
     return (
         <>
-            <title>Tracking</title>
-            <div className="header">
-                <div className="left-section">
-                    <a href="/" className="header-link">
-                        <img className="logo"
-                            src={logo} />
-                        <img className="mobile-logo"
-                            src={mobileLogo} />
-                    </a>
-                </div>
-
-                <div className="middle-section">
-                    <input className="search-bar" type="text" placeholder="Search" />
-
-                    <button className="search-button">
-                        <img className="search-icon" src={searchIcon} />
-                    </button>
-                </div>
-
-                <div className="right-section">
-                    <a className="orders-link header-link" href="/orders">
-
-                        <span className="orders-text">Orders</span>
-                    </a>
-
-                    <a className="cart-link header-link" href="/checkout">
-                        <img className="cart-icon" src={cartIcon} />
-                        <div className="cart-quantity">3</div>
-                        <div className="cart-text">Cart</div>
-                    </a>
-                </div>
-            </div>
-
+            <title>Track order</title>
+            <Header cart={cart} />
             <div className="tracking-page">
                 <div className="order-tracking">
-                    <a className="back-to-orders-link link-primary" href="/orders">
-                        View all orders
-                    </a>
-
-                    <div className="delivery-date">
-                        Arriving on Monday, June 13
-                    </div>
-
-                    <div className="product-info">
-                        Black and Gray Athletic Cotton Socks - 6 Pairs
-                    </div>
-
-                    <div className="product-info">
-                        Quantity: 1
-                    </div>
-
-                    <img className="product-image" src={socksImage} />
-
-                    <div className="progress-labels-container">
-                        <div className="progress-label">
-                            Preparing
-                        </div>
-                        <div className="progress-label current-status">
-                            Shipped
-                        </div>
-                        <div className="progress-label">
-                            Delivered
-                        </div>
-                    </div>
-
-                    <div className="progress-bar-container">
-                        <div className="progress-bar"></div>
-                    </div>
+                    <Link className="back-to-orders-link link-primary" to="/orders">View all orders</Link>
+                    {error ? <p role="alert">{error}</p> : !order ? <p>Loading tracking details...</p> : (
+                        <>
+                            <div className="delivery-date">{delivered ? 'Delivered' : 'Arriving'} {deliveryDate ? new Date(Number(deliveryDate)).toLocaleDateString() : 'date unavailable'}</div>
+                            <div className="product-info">Order {order.id}</div>
+                            {order.products.map((item) => item.product && (
+                                <div className="tracking-product" key={item.productId}>
+                                    <div className="product-info">{item.product.name}</div>
+                                    <div className="product-info">Quantity: {item.quantity}</div>
+                                    <img className="product-image" src={item.product.image} alt={item.product.name} />
+                                </div>
+                            ))}
+                            <div className="progress-labels-container">
+                                <div className="progress-label">Preparing</div>
+                                <div className={`progress-label ${!delivered ? 'current-status' : ''}`}>{delivered ? 'Delivered' : 'On the way'}</div>
+                                <div className={`progress-label ${delivered ? 'current-status' : ''}`}>Delivered</div>
+                            </div>
+                            <div className="progress-bar-container"><div className="progress-bar" style={{ width: delivered ? '100%' : '50%' }} /></div>
+                        </>
+                    )}
                 </div>
             </div>
         </>
-    )
+    );
 }

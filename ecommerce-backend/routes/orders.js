@@ -96,4 +96,13 @@ router.get('/:orderId', async (req, res) => {
   res.json(order);
 });
 
+router.delete('/:orderId', async (req, res) => {
+  const order = await Order.findByPk(req.params.orderId);
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+  await order.destroy();
+  res.status(204).send();
+});
+
 export default router;
